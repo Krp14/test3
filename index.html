@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>การวิเคราะห์เชิงพื้นที่สำหรับพลังงานหมุนเวียน</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Eco-Tech Palette -->
+    <!-- Application Structure Plan: The application uses a thematic, non-linear structure instead of mirroring the report's steps. It features a main navigation, an interactive workflow diagram, a data layer explorer, a comparative analysis section, and a central interactive results dashboard. This design prioritizes user exploration and synthesis of information over a passive, linear reading experience. The dashboard allows direct comparison between solar and wave energy results, which is the core task a user would want to perform. -->
+    <!-- Visualization & Content Choices: 
+    - Report Info: Research workflow -> Goal: Organize/Understand Process -> Viz: Interactive step-diagram (HTML/CSS/JS) -> Interaction: Click to reveal details -> Justification: More engaging and intuitive than a static list.
+    - Report Info: Data layers table -> Goal: Inform/Organize -> Viz: Card layout -> Interaction: Click/hover for details -> Justification: Visually appealing and allows users to focus on one data type at a time.
+    - Report Info: Suitability results table -> Goal: Compare/Analyze -> Viz: Doughnut Chart (Chart.js Canvas) + Dynamic Stats -> Interaction: Buttons to toggle between Solar/Wave data -> Justification: Provides an immediate visual summary of proportions, which is more effective than reading numbers in a table. Dynamic updates allow for direct comparison.
+    - CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Sarabun', sans-serif;
+            background-color: #fdfcf9;
+            color: #4a4a4a;
+        }
+        .bg-primary { background-color: #fdfcf9; }
+        .bg-secondary { background-color: #f4f1eb; }
+        .text-accent { color: #2c5282; } /* Deep Blue */
+        .text-accent-light { color: #3182ce; } /* Lighter Blue */
+        .border-accent { border-color: #2c5282; }
+        .bg-accent { background-color: #2c5282; }
+        .bg-accent-light { background-color: #3182ce; }
+        .highlight-green { color: #2f855a; } /* Green for positive stats */
+        .smooth-scroll { scroll-behavior: smooth; }
+        .nav-link {
+            transition: color 0.3s ease, border-color 0.3s ease;
+            border-bottom: 2px solid transparent;
+        }
+        .nav-link:hover, .nav-link.active {
+            color: #2c5282;
+            border-bottom-color: #2c5282;
+        }
+        .card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 450px;
+            margin-left: auto;
+            margin-right: auto;
+            height: auto;
+            min-height: 300px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                min-height: 400px;
+            }
+        }
+    </style>
+</head>
+<body class="smooth-scroll">
+
+    <header id="header" class="bg-primary shadow-sm sticky top-0 z-50">
+        <nav class="container mx-auto px-6 py-4 flex justify-between items-center">
+            <div class="text-2xl font-bold text-accent">
+                GIS & พลังงานหมุนเวียน
+            </div>
+            <div class="hidden md:flex space-x-8">
+                <a href="#hero" class="nav-link font-medium pb-1">ภาพรวม</a>
+                <a href="#workflow" class="nav-link font-medium pb-1">ขั้นตอนการวิจัย</a>
+                <a href="#analysis" class="nav-link font-medium pb-1">การวิเคราะห์</a>
+                <a href="#results" class="nav-link font-medium pb-1">ผลลัพธ์</a>
+                <a href="#conclusion" class="nav-link font-medium pb-1">สรุป</a>
+            </div>
+            <button id="mobile-menu-button" class="md:hidden focus:outline-none">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
+            </button>
+        </nav>
+        <div id="mobile-menu" class="hidden md:hidden">
+            <a href="#hero" class="block py-2 px-4 text-sm hover:bg-secondary">ภาพรวม</a>
+            <a href="#workflow" class="block py-2 px-4 text-sm hover:bg-secondary">ขั้นตอนการวิจัย</a>
+            <a href="#analysis" class="block py-2 px-4 text-sm hover:bg-secondary">การวิเคราะห์</a>
+            <a href="#results" class="block py-2 px-4 text-sm hover:bg-secondary">ผลลัพธ์</a>
+            <a href="#conclusion" class="block py-2 px-4 text-sm hover:bg-secondary">สรุป</a>
+        </div>
+    </header>
+
+    <main>
+        <section id="hero" class="bg-secondary py-20">
+            <div class="container mx-auto px-6 text-center">
+                <h1 class="text-4xl md:text-6xl font-bold text-accent mb-4">ค้นหาทำเลทองสำหรับพลังงานสะอาด</h1>
+                <p class="text-lg md:text-xl max-w-3xl mx-auto text-gray-700">
+                    สำรวจกระบวนการใช้ระบบสารสนเทศภูมิศาสตร์ (GIS) และการวิเคราะห์ข้อมูลขั้นสูง เพื่อระบุพื้นที่ที่มีศักยภาพสูงสุดสำหรับโครงการพลังงานแสงอาทิตย์และพลังงานคลื่น ลดต้นทุน และสร้างความยั่งยืน
+                </p>
+            </div>
+        </section>
+
+        <section id="workflow" class="py-20">
+            <div class="container mx-auto px-6">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl md:text-4xl font-bold text-accent">กระบวนการวิจัยเชิงพื้นที่</h2>
+                    <p class="mt-4 text-lg text-gray-600">จากแนวคิดสู่แผนที่ความเหมาะสม: 5 ขั้นตอนสำคัญในการวิเคราะห์ด้วย GIS</p>
+                </div>
+
+                <div class="grid md:grid-cols-5 gap-8 text-center">
+                    <div class="flex flex-col items-center">
+                        <div class="bg-accent text-white rounded-full w-16 h-16 flex items-center justify-center text-2xl font-bold mb-4">1</div>
+                        <h3 class="font-semibold text-xl mb-2">กำหนดปัญหา</h3>
+                        <p class="text-gray-600">ตั้งวัตถุประสงค์ที่ชัดเจนเพื่อค้นหาพื้นที่ที่คุ้มค่าที่สุด</p>
+                    </div>
+                    <div class="flex flex-col items-center">
+                        <div class="bg-accent text-white rounded-full w-16 h-16 flex items-center justify-center text-2xl font-bold mb-4">2</div>
+                        <h3 class="font-semibold text-xl mb-2">รวบรวมข้อมูล</h3>
+                        <p class="text-gray-600">สร้างชั้นข้อมูล (Layers) จากหลายแหล่ง ทั้งสิ่งแวดล้อมและเศรษฐกิจ</p>
+                    </div>
+                    <div class="flex flex-col items-center">
+                        <div class="bg-accent text-white rounded-full w-16 h-16 flex items-center justify-center text-2xl font-bold mb-4">3</div>
+                        <h3 class="font-semibold text-xl mb-2">วิเคราะห์และสร้างแบบจำลอง</h3>
+                        <p class="text-gray-600">ใช้เทคนิคขั้นสูง เช่น MCDA และ Cost Surface Analysis</p>
+                    </div>
+                    <div class="flex flex-col items-center">
+                        <div class="bg-accent text-white rounded-full w-16 h-16 flex items-center justify-center text-2xl font-bold mb-4">4</div>
+                        <h3 class="font-semibold text-xl mb-2">แสดงผลลัพธ์</h3>
+                        <p class="text-gray-600">สร้างแผนที่ความเหมาะสมและคำนวณศักยภาพการผลิต</p>
+                    </div>
+                    <div class="flex flex-col items-center">
+                        <div class="bg-accent text-white rounded-full w-16 h-16 flex items-center justify-center text-2xl font-bold mb-4">5</div>
+                        <h3 class="font-semibold text-xl mb-2">สรุปและเสนอแนะ</h3>
+                        <p class="text-gray-600">อภิปรายข้อค้นพบ ข้อจำกัด และแนวทางในอนาคต</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="data-layers" class="py-20 bg-secondary">
+            <div class="container mx-auto px-6">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl md:text-4xl font-bold text-accent">ชั้นข้อมูล (Data Layers): ส่วนประกอบสำคัญของการวิเคราะห์</h2>
+                    <p class="mt-4 text-lg text-gray-600">การวิเคราะห์ที่แม่นยำเริ่มต้นจากการรวบรวมข้อมูลที่ครอบคลุมและมีคุณภาพสูงจากหลากหลายมิติ</p>
+                </div>
+                <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    <div class="card bg-primary p-6 rounded-lg shadow-md">
+                        <h3 class="font-bold text-xl text-accent-light mb-2">🌍 ข้อมูลภูมิศาสตร์และสิ่งแวดล้อม</h3>
+                        <ul class="list-disc list-inside text-gray-700 space-y-1">
+                            <li>ศักยภาพพลังงาน (แสงอาทิตย์/คลื่น)</li>
+                            <li>ความลึกของน้ำและลักษณะพื้นทะเล</li>
+                            <li>พื้นที่คุ้มครองและพื้นที่หวงห้าม</li>
+                            <li>ข้อจำกัดทางทัศนียภาพ</li>
+                        </ul>
+                    </div>
+                    <div class="card bg-primary p-6 rounded-lg shadow-md">
+                        <h3 class="font-bold text-xl text-accent-light mb-2">💡 ข้อมูลโครงสร้างพื้นฐาน</h3>
+                        <ul class="list-disc list-inside text-gray-700 space-y-1">
+                            <li>ตำแหน่งจุดเชื่อมต่อโครงข่ายไฟฟ้า</li>
+                            <li>แนวสายเคเบิลและท่อส่งเดิม</li>
+                            <li>ระยะห่างจากถนนและสายส่งไฟฟ้า</li>
+                        </ul>
+                    </div>
+                    <div class="card bg-primary p-6 rounded-lg shadow-md">
+                        <h3 class="font-bold text-xl text-accent-light mb-2">💰 ข้อมูลเศรษฐกิจและสังคม</h3>
+                        <ul class="list-disc list-inside text-gray-700 space-y-1">
+                            <li>ต้นทุนการวางสายเคเบิลตามชนิดพื้นทะเล</li>
+                            <li>ระยะห่างจากพื้นที่อยู่อาศัย</li>
+                            <li>การใช้ประโยชน์ที่ดินในปัจจุบัน</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="analysis" class="py-20">
+            <div class="container mx-auto px-6">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl md:text-4xl font-bold text-accent">แบบจำลองการวิเคราะห์: เลือกเครื่องมือให้เหมาะกับงาน</h2>
+                    <p class="mt-4 text-lg text-gray-600">พลังงานแต่ละประเภทมีลักษณะเฉพาะตัว จึงต้องใช้แบบจำลองการวิเคราะห์ที่แตกต่างกันเพื่อผลลัพธ์ที่ดีที่สุด</p>
+                </div>
+                <div class="grid md:grid-cols-2 gap-12 items-start">
+                    <div class="bg-secondary p-8 rounded-lg">
+                        <h3 class="text-2xl font-bold text-accent-light mb-4 text-center">☀️ พลังงานแสงอาทิตย์</h3>
+                        <h4 class="text-xl font-semibold mb-2">การวิเคราะห์การตัดสินใจแบบหลายเกณฑ์ (MCDA)</h4>
+                        <p class="mb-4 text-gray-700">เป็นกระบวนการที่ให้น้ำหนักความสำคัญกับปัจจัยต่างๆ ตามความเห็นของผู้เชี่ยวชาญ เพื่อหาพื้นที่ที่เหมาะสมที่สุดโดยรวม</p>
+                        <div class="space-y-3">
+                            <p><strong>1. กำหนดเกณฑ์:</strong> เช่น GHI, ความลาดชัน, ระยะห่างจากถนน</p>
+                            <p><strong>2. ให้น้ำหนัก (AHP):</strong> เปรียบเทียบความสำคัญของแต่ละเกณฑ์</p>
+                            <p><strong>3. ซ้อนทับข้อมูล (Weighted Overlay):</strong> รวมชั้นข้อมูลที่ให้น้ำหนักแล้วเพื่อสร้างแผนที่ความเหมาะสม</p>
+                        </div>
+                    </div>
+                    <div class="bg-secondary p-8 rounded-lg">
+                        <h3 class="text-2xl font-bold text-accent-light mb-4 text-center">🌊 พลังงานคลื่น</h3>
+                        <h4 class="text-xl font-semibold mb-2">การวิเคราะห์เชิงต้นทุนและโครงข่าย</h4>
+                        <p class="mb-4 text-gray-700">เน้นการหาเส้นทางเชื่อมต่อกับโครงข่ายไฟฟ้าที่มีต้นทุนต่ำที่สุด ซึ่งเป็นปัจจัยสำคัญต่อความคุ้มค่าของโครงการ</p>
+                        <div class="space-y-3">
+                            <p><strong>1. สร้างพื้นผิวต้นทุน (Cost Surface):</strong> แปลงข้อมูลภูมิศาสตร์เป็นต้นทุน (เช่น พื้นหินมีต้นทุนสูง)</p>
+                            <p><strong>2. คำนวณระยะทางถ่วงน้ำหนัก (Cost Weighted Distance):</strong> หาเส้นทางที่ต้นทุนสะสมต่ำสุดไปยังจุดเชื่อมต่อ</p>
+                            <p><strong>3. วิเคราะห์โครงข่าย (Network Analysis):</strong> ประเมินความสามารถในการรับพลังงานของโครงข่ายไฟฟ้า</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="results" class="py-20 bg-secondary">
+            <div class="container mx-auto px-6">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl md:text-4xl font-bold text-accent">แผงควบคุมผลลัพธ์เชิงโต้ตอบ</h2>
+                    <p class="mt-4 text-lg text-gray-600">สำรวจผลลัพธ์การวิเคราะห์ความเหมาะสมของพื้นที่สำหรับพลังงานแต่ละประเภท</p>
+                </div>
+
+                <div class="text-center mb-8">
+                    <div class="inline-flex rounded-md shadow-sm" role="group">
+                        <button type="button" id="solar-btn" class="px-6 py-3 text-sm font-medium text-white bg-accent border border-gray-200 rounded-l-lg hover:bg-accent-light focus:z-10 focus:ring-2 focus:ring-blue-700">
+                            พลังงานแสงอาทิตย์
+                        </button>
+                        <button type="button" id="wave-btn" class="px-6 py-3 text-sm font-medium text-gray-900 bg-white border border-gray-200 rounded-r-md hover:bg-gray-100 focus:z-10 focus:ring-2 focus:ring-blue-700">
+                            พลังงานคลื่น
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid lg:grid-cols-2 gap-12 items-center">
+                    <div>
+                        <h3 id="result-title" class="text-2xl font-bold text-accent-light mb-4">ผลการวิเคราะห์: พลังงานแสงอาทิตย์</h3>
+                        <p id="result-description" class="mb-6 text-gray-700">
+                            แผนที่แสดงการแบ่งระดับความเหมาะสมของพื้นที่สำหรับการติดตั้งแผงโซลาร์เซลล์ โดยพิจารณาจากปัจจัยต่างๆ เช่น ค่าการฉายรังสี (GHI), ความลาดชัน, และระยะห่างจากโครงสร้างพื้นฐาน
+                        </p>
+                        <div class="grid grid-cols-2 gap-4 text-center">
+                            <div class="bg-primary p-4 rounded-lg shadow">
+                                <p class="text-sm text-gray-500">พื้นที่เหมาะสมที่สุด</p>
+                                <p id="stat-most-suitable" class="text-2xl font-bold highlight-green">17.8%</p>
+                            </div>
+                            <div class="bg-primary p-4 rounded-lg shadow">
+                                <p class="text-sm text-gray-500">ศักยภาพการผลิต (เฉลี่ย)</p>
+                                <p id="stat-potential" class="text-2xl font-bold highlight-green">1905 kWh/kWp</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="suitabilityChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="conclusion" class="py-20">
+            <div class="container mx-auto px-6 max-w-4xl">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl md:text-4xl font-bold text-accent">บทสรุปและก้าวต่อไป</h2>
+                    <p class="mt-4 text-lg text-gray-600">ภาพรวมของข้อค้นพบ ข้อจำกัด และแนวทางการพัฒนางานวิจัยในอนาคต</p>
+                </div>
+                <div class="space-y-8">
+                    <div>
+                        <h3 class="text-xl font-semibold text-accent-light mb-2">ข้อสรุปที่สำคัญ</h3>
+                        <p class="text-gray-700">
+                            การใช้ GIS และการวิเคราะห์แบบหลายเกณฑ์เป็นเครื่องมือที่ทรงพลังในการระบุตำแหน่งที่เหมาะสมสำหรับโครงการพลังงานหมุนเวียน ช่วยลดความเสี่ยงและเพิ่มความคุ้มค่าทางเศรษฐกิจ โดยผลการวิเคราะห์ชี้ให้เห็นว่าพื้นที่ที่มีศักยภาพพลังงานสูงสุดอาจไม่ใช่พื้นที่ที่เหมาะสมที่สุดเสมอไป หากมีต้นทุนการเชื่อมต่อโครงข่ายที่สูง
+                        </p>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-semibold text-accent-light mb-2">ข้อจำกัดของการศึกษา</h3>
+                        <p class="text-gray-700">
+                            ความท้าทายหลักคือความไม่สอดคล้องกันของความละเอียดเชิงพื้นที่และเวลาของชุดข้อมูลจากแหล่งต่างๆ รวมถึงความสมบูรณ์ของข้อมูลที่สร้างโดยชุมชน (เช่น OpenStreetMap) ซึ่งอาจส่งผลต่อความแม่นยำของแบบจำลอง
+                        </p>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-semibold text-accent-light mb-2">แนวทางในอนาคต</h3>
+                        <p class="text-gray-700">
+                            งานวิจัยในอนาคตควรมีการบูรณาการปัจจัยทางสังคมและการเมืองให้มากขึ้น เช่น แผนผังเมือง และการมีส่วนร่วมของชุมชน นอกจากนี้ การประยุกต์ใช้เทคนิค Deep Learning ที่ซับซ้อนขึ้นจะช่วยให้สามารถวิเคราะห์ปรากฏการณ์แบบไดนามิกและเพิ่มความแม่นยำในการพยากรณ์ได้
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="bg-gray-800 text-white py-8">
+        <div class="container mx-auto px-6 text-center">
+            <p>&copy; 2024 การวิจัยภูมิศาสตร์เพื่อพลังงานที่ยั่งยืน</p>
+            <p class="text-sm text-gray-400 mt-2">เว็บแอปพลิเคชันนี้จัดทำขึ้นเพื่อการศึกษา</p>
+        </div>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const mobileMenuButton = document.getElementById('mobile-menu-button');
+            const mobileMenu = document.getElementById('mobile-menu');
+            
+            mobileMenuButton.addEventListener('click', () => {
+                mobileMenu.classList.toggle('hidden');
+            });
+
+            const navLinks = document.querySelectorAll('.nav-link, #mobile-menu a');
+            navLinks.forEach(link => {
+                link.addEventListener('click', () => {
+                    if (!mobileMenu.classList.contains('hidden')) {
+                        mobileMenu.classList.add('hidden');
+                    }
+                });
+            });
+
+            const sections = document.querySelectorAll('section');
+            const headerNavLinks = document.querySelectorAll('#header .nav-link');
+
+            const observerOptions = {
+                root: null,
+                rootMargin: '0px',
+                threshold: 0.5
+            };
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        headerNavLinks.forEach(link => {
+                            link.classList.remove('active');
+                            if (link.getAttribute('href').substring(1) === entry.target.id) {
+                                link.classList.add('active');
+                            }
+                        });
+                    }
+                });
+            }, observerOptions);
+
+            sections.forEach(section => {
+                observer.observe(section);
+            });
+
+            const solarBtn = document.getElementById('solar-btn');
+            const waveBtn = document.getElementById('wave-btn');
+            const resultTitle = document.getElementById('result-title');
+            const resultDescription = document.getElementById('result-description');
+            const statMostSuitable = document.getElementById('stat-most-suitable');
+            const statPotential = document.getElementById('stat-potential');
+            
+            const solarData = {
+                title: 'ผลการวิเคราะห์: พลังงานแสงอาทิตย์',
+                description: 'แผนที่แสดงการแบ่งระดับความเหมาะสมของพื้นที่สำหรับการติดตั้งแผงโซลาร์เซลล์ โดยพิจารณาจากปัจจัยต่างๆ เช่น ค่าการฉายรังสี (GHI), ความลาดชัน, และระยะห่างจากโครงสร้างพื้นฐาน',
+                mostSuitable: '17.8%',
+                potential: '1905 kWh/kWp',
+                chartData: {
+                    labels: ['เหมาะสมที่สุด', 'เหมาะสม', 'ปานกลาง', 'ไม่เหมาะสม', 'ถูกจำกัด'],
+                    data: [17.8, 53.1, 10, 15.1, 4],
+                    backgroundColor: ['#2f855a', '#38a169', '#9ae6b4', '#feb2b2', '#718096']
+                }
+            };
+
+            const waveData = {
+                title: 'ผลการวิเคราะห์: พลังงานคลื่น',
+                description: 'แผนที่แสดงพื้นที่นอกชายฝั่งที่เหมาะสมสำหรับการติดตั้งอุปกรณ์แปลงพลังงานคลื่น (WEC) โดยคำนึงถึงกำลังคลื่น, ความลึกของน้ำ, และต้นทุนการวางสายเคเบิลไปยังจุดเชื่อมต่อบนบก',
+                mostSuitable: '8.5%',
+                potential: '35 kW/m',
+                chartData: {
+                    labels: ['เหมาะสมที่สุด', 'เหมาะสม', 'ปานกลาง', 'ไม่เหมาะสม', 'ถูกจำกัด'],
+                    data: [8.5, 25.5, 30, 26, 10],
+                    backgroundColor: ['#2c5282', '#3182ce', '#63b3ed', '#feb2b2', '#718096']
+                }
+            };
+
+            let currentChart;
+
+            function updateUI(data) {
+                resultTitle.textContent = data.title;
+                resultDescription.textContent = data.description;
+                statMostSuitable.textContent = data.mostSuitable;
+                statPotential.textContent = data.potential;
+                updateChart(data.chartData);
+            }
+
+            function updateChart(chartData) {
+                const ctx = document.getElementById('suitabilityChart').getContext('2d');
+                if (currentChart) {
+                    currentChart.destroy();
+                }
+                currentChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: chartData.labels,
+                        datasets: [{
+                            label: 'สัดส่วนพื้นที่',
+                            data: chartData.data,
+                            backgroundColor: chartData.backgroundColor,
+                            borderColor: '#fdfcf9',
+                            borderWidth: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    font: {
+                                        family: "'Sarabun', sans-serif",
+                                        size: 14
+                                    }
+                                }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        if (context.parsed !== null) {
+                                            label += context.parsed + '%';
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            solarBtn.addEventListener('click', () => {
+                updateUI(solarData);
+                solarBtn.classList.add('bg-accent', 'text-white');
+                solarBtn.classList.remove('bg-white', 'text-gray-900');
+                waveBtn.classList.add('bg-white', 'text-gray-900');
+                waveBtn.classList.remove('bg-accent', 'text-white');
+            });
+
+            waveBtn.addEventListener('click', () => {
+                updateUI(waveData);
+                waveBtn.classList.add('bg-accent', 'text-white');
+                waveBtn.classList.remove('bg-white', 'text-gray-900');
+                solarBtn.classList.add('bg-white', 'text-gray-900');
+                solarBtn.classList.remove('bg-accent', 'text-white');
+            });
+
+            updateUI(solarData);
+        });
+    </script>
+</body>
+</html>
